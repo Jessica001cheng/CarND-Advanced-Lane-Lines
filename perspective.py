@@ -31,7 +31,6 @@ left2_x, left2_y = left2
 
 right1 = (715, topY)
 right1_x, right1_y = right1
-
 right2 = (1150, bottomY)
 right2_x, right2_y = right2
 
@@ -41,7 +40,7 @@ cv2.line(copy, left1, left2, color, w)
 cv2.line(copy, left2, right1, color, w)
 cv2.line(copy, right1, right2, color, w)
 cv2.line(copy, right2, left1, color, w)
-showSidebySide(undist, copy, "original", "4 lines")
+showSidebySide(undist, copy, "original", "source_line_drawed")
 
 gray = cv2.cvtColor(undist, cv2.COLOR_BGR2GRAY)
 src = np.float32([
@@ -64,7 +63,7 @@ img_size = (gray.shape[1], gray.shape[0])
 M = cv2.getPerspectiveTransform(src, dst)
 Minv = cv2.getPerspectiveTransform(dst, src)
 warped = cv2.warpPerspective(undist, M, img_size)
-showSidebySide(undist, warped, "original", "Perspective transformed")
+showSidebySide(undist, warped, "original", "Perspective_transformed")
 
 pickle.dump( { 'M': M, 'Minv': Minv }, open('./pickled_data/perspective_transform.p', 'wb'))
 print(M)

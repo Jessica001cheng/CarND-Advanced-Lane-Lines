@@ -49,8 +49,17 @@ if __name__ == '__main__':
     #showSidebySide(original, chessPoint, "original", "with points")
     ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, original.shape[0:2], None, None)
     undist = undistortImages(original, mtx, dist)
-    #showSidebySide(original, undist, "original", "undistort")
+    showSidebySide(original, undist, "original", "undistort")
     ## save the calibration parameters
     pickle.dump( { 'mtx': mtx, 'dist': dist }, open('./pickled_data/camera_calibration.p', 'wb'))
-
+    testImages = list(map(lambda imageFileName: cv2.imread(imageFileName),
+                          glob.glob('./test_images/*.jpg')))
+    testImagesName = glob.glob('./test_images/*.jpg')
+    testIndex = 1
+    testImage = testImages[testIndex]
+    testName = testImagesName[testIndex]
+    undist = undistortImages(testImage, mtx, dist)
+    ## need to convert to RGB for matplot show
+    undist = cv2.cvtColor(undist, cv2.COLOR_BGR2RGB )
+    showSidebySide(cv2.cvtColor(testImage, cv2.COLOR_BGR2RGB ), undist, testName, "testImagedistort")
 

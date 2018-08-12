@@ -3,7 +3,7 @@ import cv2
 import matplotlib.pyplot as plt
 
 
-def showImages(images, imagesName, figTitle= None, cols = 4, rows = 5, figsize=(15,10), cmap = None):
+def showImages(images, imagesName, figTitle= None, cols = 4, rows = 5, figsize=(15,10), cmap = None, figName = None):
     """
         Display `images` on a [`cols`, `rows`] subplot grid.
         """
@@ -21,6 +21,12 @@ def showImages(images, imagesName, figTitle= None, cols = 4, rows = 5, figsize=(
             ax.imshow(image,cmap=cmap)
             ax.set_title(imagePathName)
             ax.axis('off')
+
+    if figName != None:
+        print("save fig name: ", figName)
+        saveName = "./output_images/" + figName + ".png"
+        fig.savefig(saveName)
+
     plt.show()
 
 
@@ -30,4 +36,7 @@ def showSidebySide(original, new, firstTitle = "original", newTitle = "new"):
     axes[0].set_title(firstTitle)
     axes[1].imshow(new)
     axes[1].set_title(newTitle)
+    ## save figure
+    saveName = "./output_images/" + newTitle + ".png"
+    fig.savefig(saveName)
     plt.show()

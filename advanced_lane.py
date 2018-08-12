@@ -151,6 +151,8 @@ def showLaneOnImages(images, imagesName, cols = 2, rows = 4, figsize=(15,13)):
             ax.set_title(imagePathName)
             ax.axis('off')
             imageAndFit.append( ( imagePathName, left_fit, right_fit, left_fit_m, right_fit_m ) )
+    saveName = "./output_images/polynomial_line.png"
+    fig.savefig(saveName)
     return imageAndFit
 
 def drawLine(img, left_fit, right_fit):
@@ -288,7 +290,8 @@ plt.show()
 ## use pipeline to deal with test images
 pipeImages = list(map(lambda img: pipeline(img), testImages))
 ## show lane in the test images
-showImages(pipeImages, testImagesName,figTitle ='Detected Lines on the test images', cols=2,rows=4,cmap='gray')
+showImages(pipeImages, testImagesName,figTitle ='Detected Lines on the test images', cols=2,rows=4,cmap='gray',
+           figName = "LaneOnTestImages")
 plt.show()
 ## Use pipeline to deal with the project_video file
 ## no need convert BGR to RGB

@@ -100,22 +100,25 @@ if __name__ == '__main__':
     s = list(map(lambda img: cv2.cvtColor(img, cv2.COLOR_BGR2HLS)[:,:,2],undistImages))
     l = list(map(lambda img: cv2.cvtColor(img, cv2.COLOR_BGR2HLS)[:,:,1],undistImages))
     sChannel = list(map(lambda img: sThresh(img, thresh=(100, 255)),s))
-    showImages(sChannel, testImagesName,figTitle='S channel Threshold', cols=2,rows=4,cmap='gray')
+    showImages(sChannel, testImagesName,figTitle='S channel Threshold', cols=2,rows=4,cmap='gray',
+               figName = "SChanelThres")
     ## Sobel X on L channel
-    withSobelX = list(map(lambda img: absSobelThresh(img, thresh=(10, 160)), l))
-    showImages(withSobelX, testImagesName,figTitle ='Sobel X on L channel', cols=2,rows=4,cmap='gray')
+    withSobelX = list(map(lambda img: absSobelThresh(img, thresh=(10, 160)), s))
+    showImages(withSobelX, testImagesName,figTitle ='Sobel X on S channel', cols=2,rows=4,cmap='gray',
+               figName = "SobelXThres")
     plt.show()
     ## Sobel Y on L channel
-    withSobelY = list(map(lambda img: absSobelThresh(img, thresh=(10, 160), orient = "y"), l))
-    showImages(withSobelY, testImagesName,figTitle ='Sobel Y on L channel', cols=2,rows=4,cmap='gray')
+    withSobelY = list(map(lambda img: absSobelThresh(img, thresh=(10, 160), orient = "y"), s))
+    showImages(withSobelY, testImagesName,figTitle ='Sobel Y on S channel', cols=2,rows=4,cmap='gray',
+               figName = "SobelYThres")
     plt.show()
     ## Sobel Magnitude
-    magnitude = list(map(lambda img: magThresh(img, thresh=(10, 160)), l))
-    showImages(magnitude, testImagesName,figTitle ='Magnitude on L channel', cols=2,rows=4,cmap='gray')
+    magnitude = list(map(lambda img: magThresh(img, thresh=(10, 160)), s))
+    showImages(magnitude, testImagesName,figTitle ='Magnitude on S channel', cols=2,rows=4,cmap='gray')
     plt.show()
     ## Sobel Direction gradient
-    direction = list(map(lambda img: dirThresh(img, thresh=(0.79,1.20)), l))
-    showImages(direction, testImagesName,figTitle ='Direction gradient on L channel', cols=2,rows=4,cmap='gray')
+    direction = list(map(lambda img: dirThresh(img, thresh=(0.79,1.20)), s))
+    showImages(direction, testImagesName,figTitle ='Direction gradient on S channel', cols=2,rows=4,cmap='gray')
     plt.show()
     ## Combine Sobel X,y and S channel threshold
     # Convert to HLS color space
@@ -124,5 +127,6 @@ if __name__ == '__main__':
     showImages(combine, testImagesName,figTitle ='Combine Sobel on L channel and S threshold', cols=2,rows=4,cmap='gray')
     plt.show()
     combineS = list(map(lambda img: combineGradientsOnS(img, thresh=(10, 160)), hls))
-    showImages(combine, testImagesName,figTitle ='Combine Sobel on S channel and S threshold', cols=2,rows=4,cmap='gray')
+    showImages(combine, testImagesName,figTitle ='Combine Sobel on S channel and S threshold', cols=2,rows=4,cmap='gray',
+               figName = "CombineS_SobelThres_Schannel")
     plt.show()
