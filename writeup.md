@@ -180,6 +180,6 @@ Here's a [link to my video result](./video_output/project_video.mp4)
 
 Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further. 
 
-1. I tried a lot of wayto create a thresholded image. And finally decided to use a combination of detect Yellow and White Line in HSV colorspace and gradient thresholds to generate a binary image.
+1. I tried a lot of way to create a thresholded image. And finally decided to use a combination of detect Yellow and White Line in HSV colorspace and gradient thresholds to generate a binary image.
 
 2. I use the distance of between white dash line to calcuate ym_per_pix. As this is more accurate on my perspective image.
