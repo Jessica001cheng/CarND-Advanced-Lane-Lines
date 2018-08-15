@@ -10,11 +10,15 @@ cameraCalibration = pickle.load( open('./pickled_data/camera_calibration.p', 'rb
 mtx, dist = map(cameraCalibration.get, ('mtx', 'dist'))
 ## Read test image
 testImages = list(map(lambda imageFileName: cv2.imread(imageFileName),
-                      glob.glob('./test_images/*.jpg')))
-
+                      glob.glob('./test_images/st*.jpg')))
+testImagesName = glob.glob('./test_images/st*.jpg')
 print("test images num:", len(testImages))
-index = 0
+index = 1
+print("test images name:", testImagesName[index])
 ## Convert to RGB image
+## test4.img to test
+#testImage = cv2.imread('./test_images/test4.jpg')
+
 original = cv2.cvtColor(testImages[index],cv2.COLOR_BGR2RGB)
 undist = cv2.undistort(original, mtx, dist, None, mtx)
 
@@ -22,16 +26,16 @@ xSize, ySize, _ = undist.shape
 copy = undist.copy()
 
 bottomY = 720
-topY = 455
+topY = 500
 
-left1 = (230, bottomY)
+left1 = (201, bottomY)
 left1_x, left1_y = left1
-left2 = (605, topY)
+left2 = (528, topY)
 left2_x, left2_y = left2
 
-right1 = (715, topY)
+right1 = (768, topY)
 right1_x, right1_y = right1
-right2 = (1150, bottomY)
+right2 = (1100, bottomY)
 right2_x, right2_y = right2
 
 color = [255, 0, 0]
@@ -65,7 +69,7 @@ Minv = cv2.getPerspectiveTransform(dst, src)
 warped = cv2.warpPerspective(undist, M, img_size)
 showSidebySide(undist, warped, "original", "Perspective_transformed")
 
-pickle.dump( { 'M': M, 'Minv': Minv }, open('./pickled_data/perspective_transform.p', 'wb'))
+#pickle.dump( { 'M': M, 'Minv': Minv }, open('./pickled_data/perspective_transform.p', 'wb'))
 print(M)
 print(Minv)
 

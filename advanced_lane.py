@@ -5,23 +5,35 @@ import matplotlib.pyplot as plt
 import pickle
 from helper import showImages, showSidebySide
 from camera_calibrate import undistortImages
-from threshold_binary import combineGradients, combineGradientsOnS
+from threshold_binary import combineGradients, combineGradientsOnS, combineGradientsAndColor
 from moviepy.editor import VideoFileClip
 
 class Lane():
     def __init__(self):
-        self.left_fit = None
-        self.right_fit = None
-        self.left_fit_m = None
-        self.right_fit_m = None
-        self.leftCurvature = None
-        self.rightCurvature = None
+        self.fit = None
+        self.fit_m = None
+        self.curvature = None
+    def setfit(self, fit):
+        self.fit = fit
+    def setfit_m(self, fit_m):
+        self.fit_m = fit_m
+
 # Init LeftLane and rightLane for pipeline use
 leftLane = Lane()
 rightLane = Lane()
 # Define conversions in x and y from pixels space to meters
-ym_per_pix = 30/720 # meters per pixel in y dimension
-xm_per_pix = 3.7/700 # meters per pixel in x dimension
+## as perspective transform, the offset = 200
+offset = 200
+image_width = 1280
+image_height = 720
+## the line width is 3.7m
+## 3.7m = xm_per_pix * (1280 - 2*200)
+xm_per_pix = 3.7/(image_width - 2*offset) # meters per pixel in x dimension
+##  Each dashed line measures 10 feet, and the empty spaces in-between measure 30 feet.
+between_dashline_m = 9.14 ##     30 feet
+between_dashline_start_y = 100
+between_dashline_end_y = 670
+ym_per_pix = between_dashline_m/(between_dashline_end_y - between_dashline_start_y) # meters per pixel in y dimension
 
 # Define M as 0 at begin
 M = 0
@@ -29,6 +41,9 @@ M = 0
 # Define if need convert BGR to RGB for cv image reading
 needBGR2RGB = True
 
+# Define show image row and columns
+imageRow = 3
+imageCol = 3
 
 def adjustPerspective(image, M=M):
     """
@@ -37,6 +52,7 @@ def adjustPerspective(image, M=M):
     img_size = (image.shape[1], image.shape[0])
     warped = cv2.warpPerspective(image, M, img_size)
     return warped
+
 def findLines(binary_warped, nwindows=9, margin=110, minpix=50):
     """
         Find the polynomial representation of the lines in the `image` using:
@@ -107,12 +123,22 @@ def findLines(binary_warped, nwindows=9, margin=110, minpix=50):
     righty = nonzeroy[right_lane_inds]
 
     # Fit a second order polynomial to each
-    left_fit = np.polyfit(lefty, leftx, 2)
-    right_fit = np.polyfit(righty, rightx, 2)
+    try:
+        ## if can not find valid point, use the previous value
+        left_fit = np.polyfit(lefty, leftx, 2)
+        right_fit = np.polyfit(righty, rightx, 2)
+    except TypeError:
+        print("use last frame")
+        left_fit = leftLane.left_fit
+        right_fit = rightLane.right_fit
     
     # Fit a second order polynomial to each
-    left_fit_m = np.polyfit(lefty*ym_per_pix, leftx*xm_per_pix, 2)
-    right_fit_m = np.polyfit(righty*ym_per_pix, rightx*xm_per_pix, 2)
+    try:
+        left_fit_m = np.polyfit(lefty*ym_per_pix, leftx*xm_per_pix, 2)
+        right_fit_m = np.polyfit(righty*ym_per_pix, rightx*xm_per_pix, 2)
+    except TypeError:
+        left_fit_m = leftLane.left_fit_m
+        right_fit_m = rightLane.right_fit_m
     
     return (left_fit, right_fit, left_fit_m, right_fit_m, left_lane_inds, right_lane_inds, out_img, nonzerox, nonzeroy)
 
@@ -204,13 +230,16 @@ def calculateCenter(img, left_fit_m, right_fit_m):
     diffFromVehicle = lineMiddle - vehicleCenter
     return diffFromVehicle
 
-def pipeline(img):
-    undistort = undistortImages(img,mtx, dist)
-    hls = cv2.cvtColor(undistort, cv2.COLOR_BGR2HLS)
-    combine = combineGradientsOnS(hls, thresh=(10, 160))
-    binary_warped = adjustPerspective(combine, M)
+# Function to draw the line on the images
+def laneCurveProcess(binary_warped, img):
     left_fit, right_fit, left_fit_m, right_fit_m, _, _, _, _, _ = findLines(binary_warped)
     #print("left_fit_m:, right_fit_m: ",left_fit_m, right_fit_m)
+    leftLane.setfit(left_fit)
+    rightLane.setfit(right_fit)
+    #print("left_fit in left lane, right_fit in right lane: ", leftLane.fit, rightLane.fit)
+    leftLane.setfit_m(left_fit_m)
+    rightLane.setfit_m(right_fit_m)
+    #print("left_fit_m in left lane, right_fit_m in right lane: ", leftLane.fit_m, rightLane.fit_m)
     output = drawLine(img, left_fit, right_fit)
     if needBGR2RGB:
         output = cv2.cvtColor( output, cv2.COLOR_BGR2RGB )
@@ -219,26 +248,72 @@ def pipeline(img):
     yRange = img.shape[0] - 1
     leftCurvature = calculateCurvature(yRange, left_fit_m)
     rightCurvature = calculateCurvature(yRange, right_fit_m)
-    #print("actural left curv:, right curv: ",leftCurvature, rightCurvature)
-    ## Compare with old_left_fit & old_right_fit to decide if update or not
-    ## find in strait_line image, the leftCurvature is very big: 29770m. Is there wrong in my code?
-    if leftCurvature > 10000:
-        left_fit = leftLane.left_fit
-        left_fit_m = leftLane.left_fit_m
-        leftCurvature = leftLane.leftCurvature
+    print("actural left curv:, right curv: ",leftCurvature, rightCurvature)
+    
+    # Calculate vehicle center
+    diffFromVehicle = calculateCenter(img, left_fit_m, right_fit_m)
+    if diffFromVehicle > 0:
+        message = '{:.2f} m right'.format(diffFromVehicle)
     else:
-        leftLane.left_fit = left_fit
-        leftLane.left_fit_m = left_fit_m
-        leftLane.leftCurvature = leftCurvature
+        message = '{:.2f} m left'.format(-diffFromVehicle)
+    
+    # Draw info
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    fontColor = (255, 255, 255)
+    fontScale = 2
+    cv2.putText(output, 'Left curvature: {:.0f} m'.format(leftCurvature), (50, 50), font, fontScale, fontColor, 2)
+    cv2.putText(output, 'Right curvature: {:.0f} m'.format(rightCurvature), (50, 120), font, fontScale, fontColor, 2)
+    cv2.putText(output, 'Vehicle is {} of center'.format(message), (50, 190), font, fontScale, fontColor, 2)
+    return output
+
+## pipe line to deal with movie
+def pipeline(img):
+    undistort = undistortImages(img,mtx, dist)
+    #hls = cv2.cvtColor(undistort, cv2.COLOR_BGR2HLS)
+    combine = combineGradientsAndColor(undistort, threshSobel=(50, 160))
+    binary_warped = adjustPerspective(combine, M)
+    left_fit, right_fit, left_fit_m, right_fit_m, _, _, _, _, _ = findLines(binary_warped)
+    #print("left_fit_m in left lane, right_fit_m in right lane: ", leftLane.fit_m, rightLane.fit_m)
+    output = drawLine(img, left_fit, right_fit)
+    if needBGR2RGB:
+        output = cv2.cvtColor( output, cv2.COLOR_BGR2RGB )
+        print("need convert")
+    # Calculate curvature
+    yRange = img.shape[0] - 1
+    leftCurvature = calculateCurvature(yRange, left_fit_m)
+    rightCurvature = calculateCurvature(yRange, right_fit_m)
+    
+    #print("actural left curv:, right curv: ",leftCurvature, rightCurvature)
+    ## first frame set
+    if leftLane.curvature is None:
+        print("first frame")
+        leftLane.curvature = leftCurvature
+    if rightLane.curvature is None:
+        print("first frame")
+        rightLane.curvature = rightCurvature
+    ## Compare with old_left_fit & old_right_fit to decide if update or not
+    ## Also check deviation from last frame. If deviation > 5%, discard this frame.
+    #leftDeviate = abs((left_fit[0] - leftLane.fit[0])/leftLane.fit[0])
+    #rightDeviate = abs((right_fit[0] - rightLane.fit[0])/rightLane.fit[0])
+    if leftCurvature > 10000:
+        print("discard fail frame as left curve")
+        left_fit = leftLane.fit
+        left_fit_m = leftLane.fit_m
+        leftCurvature = leftLane.curvature
+    else:
+        leftLane.fit = left_fit
+        leftLane.fit_m = left_fit_m
+        leftLane.curvature = leftCurvature
 
     if rightCurvature > 10000:
-        right_fit = rightLane.right_fit
-        right_fit_m = rightLane.right_fit_m
-        rightCurvature = rightLane.rightCurvature
+        print("discard fail frame as right curve")
+        right_fit = rightLane.fit
+        right_fit_m = rightLane.fit_m
+        rightCurvature = rightLane.curvature
     else:
-        rightLane.right_fit = right_fit
-        rightLane.right_fit_m = right_fit_m
-        rightLane.rightCurvature = rightCurvature
+        rightLane.fit = right_fit
+        rightLane.fit_m = right_fit_m
+        rightLane.curvature = rightCurvature
 
     # Calculate vehicle center
     diffFromVehicle = calculateCenter(img, left_fit_m, right_fit_m)
@@ -266,6 +341,7 @@ def videoPipeline(inputVideo, outputVideo):
     clip = myclip.fl_image(pipeline)
     clip.write_videofile(outputVideo, audio=False)
 
+## test code
 # Loading camera calibration
 cameraCalibration = pickle.load( open('./pickled_data/camera_calibration.p', 'rb' ) )
 mtx, dist = map(cameraCalibration.get, ('mtx', 'dist'))
@@ -274,25 +350,41 @@ mtx, dist = map(cameraCalibration.get, ('mtx', 'dist'))
 testImages = list(map(lambda imageFileName: cv2.imread(imageFileName),
                       glob.glob('./test_images/*.jpg')))
 testImagesName = glob.glob('./test_images/*.jpg')
+print("test image shape: ", testImages[1].shape)
+image_width = testImages[1].shape[1]
+image_height = testImages[1].shape[1]
 undistImages = list(map(lambda img: undistortImages(img,mtx, dist),testImages))
 # Convert to HLS color space
-hlsImages = list(map(lambda img: cv2.cvtColor(img, cv2.COLOR_BGR2HLS),undistImages))
+#hlsImages = list(map(lambda img: cv2.cvtColor(img, cv2.COLOR_BGR2HLS),undistImages))
 #combineImages = list(map(lambda img: combineGradients(img, thresh=(10, 160)), hlsImages))
 # Find use S channel will detect line better
-combineImages = list(map(lambda img: combineGradientsOnS(img, thresh=(10, 160)), hlsImages))
+#combineImages = list(map(lambda img: combineGradientsOnS(img, threshSobel=(30, 160), threshS = (150,255)), hlsImages))
+## Finally use combination of color detection on HSV and Sobel on S channel of HLS
+combineImages = list(map(lambda img: combineGradientsAndColor(img, threshSobel=(50, 160)), undistImages))
+## show warped images in the test images
+showImages(combineImages, testImagesName,figTitle ='Filter on test images', cols=imageRow,rows=imageCol,cmap='gray',figName = "FilteredTestImages")
+plt.show()
+
 ## Apply perspective transform
 transMatrix = pickle.load( open('./pickled_data/perspective_transform.p', 'rb' ) )
 M, Minv = map(transMatrix.get, ('M', 'Minv'))
 warpedImages = list(map(lambda img: adjustPerspective(img, M), combineImages))
+## show warped images in the test images
+showImages(warpedImages, testImagesName,figTitle ='Perspective transform on the test images', cols=imageRow,rows=imageCol,cmap='gray',figName = "PerspectiveTestImages")
+plt.show()
+
 ## show lane-line pixels and fit their positions with a polynomial
-polyImages = showLaneOnImages(warpedImages, testImagesName)
-plt.show()
-## use pipeline to deal with test images
-pipeImages = list(map(lambda img: pipeline(img), testImages))
+#polyImages = showLaneOnImages(warpedImages, testImagesName, cols=imageRow,rows=imageCol)
+#plt.show()
+
+processedImages = []
+for i in range(len(testImagesName)):
+    processed = laneCurveProcess(warpedImages[i], testImages[i])
+    processedImages.append(processed)
 ## show lane in the test images
-showImages(pipeImages, testImagesName,figTitle ='Detected Lines on the test images', cols=2,rows=4,cmap='gray',
-           figName = "LaneOnTestImages")
+showImages(processedImages, testImagesName,figTitle ='Detected Lines on the test images', cols=imageRow,rows=imageCol,cmap='gray', figName = "LaneOnTestImages")
 plt.show()
+
 ## Use pipeline to deal with the project_video file
 ## no need convert BGR to RGB
 needBGR2RGB = not needBGR2RGB

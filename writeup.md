@@ -21,14 +21,16 @@ The goals / steps of this project are the following:
 
 [image1]: ./output_images/undistort.png "Undistorted"
 [image2]: ./output_images/testImagedistort.png "Road Transformed"
-[image3]: ./output_images/SChanelThres.png "Binary Example"
-[image4]: ./output_images/SobelXThres.png "Binary Example"
-[image5]: ./output_images/SobelYThres.png "Binary Example"
-[image6]: ./output_images/CombineS_SobelThres_Schannel.png "Binary Example"
-[image7]: ./output_images/source_line_drawed.png "Warp Example"
-[image8]: ./output_images/Perspective_transformed.png "Warp Example"
-[image9]: ./output_images/polynomial_line.png "Fit Visual"
-[image10]: ./output_images/LaneOnTestImages.png "Output"
+[image3]: ./output_images/YellowLine.png "Binary Example"
+[image4]: ./output_images/WhiteLine.png "Binary Example"
+[image5]: ./output_images/YellowWhiteLine.png "Binary Example"
+[image6]: ./output_images/SobelXThres.png "Binary Example"
+[image7]: ./output_images/SobelYThres.png "Binary Example"
+[image8]: ./output_images/FilteredTestImages.png "Binary Example"
+[image9]: ./output_images/source_line_drawed.png "Warp Example"
+[image10]: ./output_images/Perspective_transformed.png "Warp Example"
+[image11]: ./output_images/polynomial_line.png "Fit Visual"
+[image12]: ./output_images/LaneOnTestImages.png "Output"
 [video1]: ./video_output/project_video.mp4 "Video"
 
 ## [Rubric](https://review.udacity.com/#!/rubrics/571/view) Points
@@ -64,34 +66,58 @@ To demonstrate this step, I will describe how I apply the distortion correction 
 
 #### 2. Describe how (and identify where in your code) you used color transforms, gradients or other methods to create a thresholded binary image.  Provide an example of a binary image result.
 
-I used a combination of color and gradient thresholds to generate a binary image (thresholding steps at lines #12 through #78 in `threshold_binary.py`).  Here's an example of my output for this step.  (note: this is not actually from one of the test images)
+First, as there is one frame from the project_video.mp4 cause lane detection fail. I took this frame as a test image, named "screenshot.jpg".
 
-S channel threshold:
+Then I tried a lot of way to create a thresholded image. And finally decided to use a combination of detect Yellow and White Line in HSV colorspace and gradient thresholds to generate a binary image (thresholding steps at lines #12 through #121 in `threshold_binary.py`).  Here's an example of my output for this step. 
+
+Detect Yellow Line in HSV colorspace with yellow mask
+
+low: [0,80,200]
+
+hight: [40,255,255]
 
 ![alt text][image3]
-Sobel X on S channel threshold:
+
+Detect White Line in HSV colorspace with white mask
+
+low: [20,0,200]
+
+hight: [255,80,255]
+
 
 ![alt text][image4]
-Sobel Y on S channel threshold:
+
+Combine Yellow Line and White Line together:
 
 ![alt text][image5]
-Combine Sobel X/Y oand S channel threshold:
+
+Then I convert image into HLS colorspace and do Sobel detection:
+
+Sobel X on S channel:
 
 ![alt text][image6]
+Sobel Y on S channel threshold:
+
+![alt text][image7]
+Combine Sobel X/Y oand Yellow and White Line:
+
+![alt text][image8]
 
 #### 3. Describe how (and identify where in your code) you performed a perspective transform and provide an example of a transformed image.
 
 The code for my perspective transform includes a function called `warper()`, which appears in lines 1 through 8 in the file `perspective.py`. The `warper()` function takes as inputs an image (`img`), as well as source (`src`) and destination (`dst`) points.  I chose the hardcode the source and destination points in the following manner:
 
 ```python
-left1 = (230, bottomY)
+bottomY = 720
+topY = 500
+left1 = (201, bottomY)
 left1_x, left1_y = left1
-left2 = (605, topY)
+left2 = (528, topY)
 left2_x, left2_y = left2
 
-right1 = (715, topY)
+right1 = (768, topY)
 right1_x, right1_y = right1
-right2 = (1150, bottomY)
+right2 = (1100, bottomY)
 right2_x, right2_y = right2
 src = np.float32([
                   [left2_x, left2_y],
@@ -110,23 +136,23 @@ This resulted in the following source and destination points:
 
 | Source        | Destination   | 
 |:-------------:|:-------------:| 
-| 605, 455      | 200, 0        | 
-| 230, 720      | 200, 720      |
-| 1150, 720     | 1080, 720      |
-| 715, 455      | 1080, 0        |
+| 528, 500      | 200, 0        | 
+| 201, 720      | 200, 720      |
+| 1100, 720     | 1080, 720      |
+| 768, 500      | 1080, 0        |
 
 I verified that my perspective transform was working as expected by drawing the `src` and `dst` points onto a test image and its warped counterpart to verify that the lines appear parallel in the warped image.
 
-![alt text][image7]
+![alt text][image9]
 warped result on test image:
 
-![alt text][image8]
+![alt text][image10]
 
 #### 4. Describe how (and identify where in your code) you identified lane-line pixels and fit their positions with a polynomial?
 
 Then I did some other stuff and fit my lane lines with a 2nd order polynomial kinda like this:
 
-![alt text][image9]
+![alt text][image11]
 
 #### 5. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
 
@@ -136,7 +162,7 @@ I did this in lines #188 through #203 in my code in `advanced_lane.py`
 
 I implemented this step in lines #156 through #178 in my code in `advanced_lane.py` in the function `drawLine()`.  Here is an example of my result on a test image:
 
-![alt text][image10]
+![alt text][image12]
 
 ---
 
@@ -154,5 +180,6 @@ Here's a [link to my video result](./video_output/project_video.mp4)
 
 Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further. 
 
-1. I use HLS conversion to get H,L,S channel. Then i use Sobel X/Y on L channel and threshold on S channel. But the effect is not good on test images. So change to use Sobel X/Y on S channel and threshold on S channel. Then the binary warped image is better filtered.
-2. when I use window to find the left/right lines and calculate the left/right curvation, i find the left curv are always bigger than the right curve. So want to check if any wrong in my code.
+1. I tried a lot of wayto create a thresholded image. And finally decided to use a combination of detect Yellow and White Line in HSV colorspace and gradient thresholds to generate a binary image.
+
+2. I use the distance of between white dash line to calcuate ym_per_pix. As this is more accurate on my perspective image.
