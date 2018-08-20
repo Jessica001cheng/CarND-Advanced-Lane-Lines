@@ -21,12 +21,12 @@ The goals / steps of this project are the following:
 
 [image1]: ./output_images/undistort.png "Undistorted"
 [image2]: ./output_images/testImagedistort.png "Road Transformed"
-[image3]: ./output_images/YellowLine.png "Binary Example"
-[image4]: ./output_images/WhiteLine.png "Binary Example"
+[image3]: ./output_images/yellowLab.png "Binary Example"
+[image4]: ./output_images/whiteLuv.png "Binary Example"
 [image5]: ./output_images/YellowWhiteLine.png "Binary Example"
 [image6]: ./output_images/SobelXThres.png "Binary Example"
 [image7]: ./output_images/SobelYThres.png "Binary Example"
-[image8]: ./output_images/FilteredTestImages.png "Binary Example"
+[image8]: ./output_images/combineGradiantAndLABLUV.png "Binary Example"
 [image9]: ./output_images/source_line_drawed.png "Warp Example"
 [image10]: ./output_images/Perspective_transformed.png "Warp Example"
 [image11]: ./output_images/polynomial_line.png "Fit Visual"
@@ -68,21 +68,27 @@ To demonstrate this step, I will describe how I apply the distortion correction 
 
 First, as there is one frame from the project_video.mp4 cause lane detection fail. I took this frame as a test image, named "screenshot.jpg".
 
-Then I tried a lot of way to create a thresholded image. And finally decided to use a combination of detect Yellow and White Line in HSV colorspace and gradient thresholds to generate a binary image (thresholding steps at lines #12 through #121 in `threshold_binary.py`).  Here's an example of my output for this step. 
+Then I tried a lot of way to create a thresholded image. And reviewer(Thanks for the review) give me the suggestion as below:
 
-Detect Yellow Line in HSV colorspace with yellow mask
+. Applying color threshold to the B(range:145-200 in LAB for shading & brightness changes and R in RGB in final pipeline can also help in detecting the yellow lanes.
 
-low: [0,80,200]
+. And thresholding L (range: 215-255) of Luv for whites.
 
-hight: [40,255,255]
+The code is (thresholding steps at lines #12 through #121 in `threshold_binary.py`).  Here's an example of my output for this step. 
+
+Detect Yellow Line in B channel in LAB colorspace with yellow mask
+
+low: [145]
+
+hight: [200]
 
 ![alt text][image3]
 
-Detect White Line in HSV colorspace with white mask
+Detect White Line in L channel in LUV colorspace with white mask
 
-low: [20,0,200]
+low: [215]
 
-hight: [255,80,255]
+hight: [255]
 
 
 ![alt text][image4]
@@ -183,3 +189,9 @@ Here I'll talk about the approach I took, what techniques I used, what worked an
 1. I tried a lot of way to create a thresholded image. And finally decided to use a combination of detect Yellow and White Line in HSV colorspace and gradient thresholds to generate a binary image.
 
 2. I use the distance of between white dash line to calcuate ym_per_pix. As this is more accurate on my perspective image.
+
+3. I use reviewer's suggestion to detect yellow line in LAB colorspace and white line in LUV colorspace. it reduce a lot of noises.
+
+4. I save previous 10 frames polynomial parameters. when get the current frame polynomial, I check it with sanityCheck(Line 305~326 in advanced_lane.py). If current frame is not valid, I will use the last frame. If current is valid, I will avarage with last 10 frames and get a new polynomial parameters.
+
+5. I clip the video from 0:39~0:42 to test1.mp4. With my above changes, the test1_out.mp4 can detect lane smoothly.

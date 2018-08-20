@@ -120,9 +120,55 @@ def combineGradientsAndColor(img,threshSobel = (10,100)):
     combined[((sobelX == 1) & (sobelY == 1)) | (yellowandwhite == 1)] = 1
     return combined
 
+# suggestion from reviewer for binary threshold for yellow and white line
+# function to get yellow line an white line in HSV colorspace
+def yellowOnLabAndRgb(img):
+    b = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)[:,:,2]
+    b_thres_on_lab = (145,200)
+    '''
+    r = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)[:,:,1]
+    r_thres_on_lab = (100,200)
+    binary = np.zeros_like(b)
+    binary[(b >= b_thres_on_lab[0]) & (b <= b_thres_on_lab[1])
+           & (r >= r_thres_on_lab[0]) & (r <= r_thres_on_lab[1])] = 1
+           '''
+    binary = np.zeros_like(b)
+    binary[(b >= b_thres_on_lab[0]) & (b <= b_thres_on_lab[1])] = 1
+    return binary
+
+# function to get yellow line an white line in LUV colorspace
+def whiteOnLuv(img):
+    l = cv2.cvtColor(img, cv2.COLOR_BGR2LUV)[:,:,0]
+    l_thres_on_lab = (215,255)
+    binary = np.zeros_like(l)
+    binary[(l >= l_thres_on_lab[0]) & (l <= l_thres_on_lab[1])] = 1
+    return binary
+
+# function to get yellow line and white line in HSV colorspace
+def combineYellowWhiteOnLabLuv(img):
+    yellow = yellowOnLabAndRgb(img)
+    white = whiteOnLuv(img)
+    binary = np.zeros_like(yellow)
+    binary[(yellow == 1) | (white == 1)] = 1
+    return binary
+
+def combineGradientsAndLUV(img,threshSobel = (10,100)):
+    """
+        Compute the combination of Sobel X and Sobel Y or Magnitude and Direction
+        """
+    #hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    s=cv2.cvtColor(img, cv2.COLOR_BGR2HLS)[:,:,2]
+    sobelX = absSobelThresh(s, thresh=threshSobel)
+    sobelY = absSobelThresh(s, thresh=threshSobel, orient = "y")
+    yellow = yellowOnLabAndRgb(img)
+    white = whiteOnLuv(img)
+    combined = np.zeros_like(sobelX)
+    combined[((sobelX == 1) & (sobelY == 1)) | (yellow == 1) | (white == 1)] = 1
+    return combined
+
 if __name__ == '__main__':
     # Define show image row and columns
-    imageRow = 3
+    imageRow = 4
     imageCol = 3
     cameraCalibration = pickle.load( open('./pickled_data/camera_calibration.p', 'rb' ) )
     mtx, dist = map(cameraCalibration.get, ('mtx', 'dist'))
@@ -133,6 +179,7 @@ if __name__ == '__main__':
     #print("testImages name: ", testImagesName)
     undistImages = list(map(lambda img: undistortImages(img,mtx, dist),testImages))
     # Convert to HSV color space
+ 
     hsv = list(map(lambda img: cv2.cvtColor(img, cv2.COLOR_BGR2HSV),undistImages))
     # filter yellow line
     yellowLine = list(map(lambda img: yellowOnHsv(img),hsv))
@@ -147,21 +194,21 @@ if __name__ == '__main__':
     showImages(yellowwhiteLine, testImagesName,figTitle='yellowwhite line detect', cols=imageRow,rows=imageCol,cmap='gray',
              figName = "YellowWhiteLine")
     # Convert to HLS color space and
-    #s = list(map(lambda img: cv2.cvtColor(img, cv2.COLOR_BGR2HLS)[:,:,2],undistImages))
-    #l = list(map(lambda img: cv2.cvtColor(img, cv2.COLOR_BGR2HLS)[:,:,1],undistImages))
+    s = list(map(lambda img: cv2.cvtColor(img, cv2.COLOR_BGR2HLS)[:,:,2],undistImages))
+    l = list(map(lambda img: cv2.cvtColor(img, cv2.COLOR_BGR2HLS)[:,:,1],undistImages))
     #sChannel = list(map(lambda img: sThresh(img, thresh=(170, 255)),s))
     #showImages(sChannel, testImagesName,figTitle='S channel Threshold', cols=imageRow,rows=imageCol,cmap='gray',
     #           figName = "SChanelThres")
     ## Sobel X on L channel
-    #withSobelX = list(map(lambda img: absSobelThresh(img, thresh=(50, 160)), s))
-    #showImages(withSobelX, testImagesName,figTitle ='Sobel X on S channel', cols=imageRow,rows=imageCol, cmap='gray',
-    #           figName = "SobelXThres")
-    #plt.show()
+    withSobelX = list(map(lambda img: absSobelThresh(img, thresh=(50, 160)), s))
+    showImages(withSobelX, testImagesName,figTitle ='Sobel X on S channel', cols=imageRow,rows=imageCol, cmap='gray',
+               figName = "SobelXThres")
+    plt.show()
     ## Sobel Y on L channel
-    #withSobelY = list(map(lambda img: absSobelThresh(img, thresh=(50, 160), orient = "y"), s))
-    #showImages(withSobelY, testImagesName,figTitle ='Sobel Y on S channel', cols=imageRow,rows=imageCol, cmap='gray',
-    #           figName = "SobelYThres")
-    #plt.show()
+    withSobelY = list(map(lambda img: absSobelThresh(img, thresh=(50, 160), orient = "y"), s))
+    showImages(withSobelY, testImagesName,figTitle ='Sobel Y on S channel', cols=imageRow,rows=imageCol, cmap='gray',
+               figName = "SobelYThres")
+    plt.show()
     # Combine Sobel X,Y on S channel and color detection
     combine = list(map(lambda img: combineGradientsAndColor(img, threshSobel=(50, 160)), undistImages))
     showImages(combine, testImagesName,figTitle ='Combine', cols=imageRow,rows=imageCol, cmap='gray',
@@ -183,5 +230,23 @@ if __name__ == '__main__':
     #plt.show()
     #combineS = list(map(lambda img: combineGradientsOnS(img, threshSobel=(50, 160), threshS = (170,255)), hls))
     #showImages(combine, testImagesName,figTitle ='Combine Sobel on S channel and S threshold', cols=imageRow,rows=imageCol, cmap='gray',
-    #           figName = "CombineS_SobelThres_Schannel")
+    #figName = "CombineS_SobelThres_Schannel")
     #plt.show()
+   
+    combine = list(map(lambda img: yellowOnLabAndRgb(img), undistImages))
+    showImages(combine, testImagesName,figTitle ='yellow on LAB', cols=imageRow,rows=imageCol, cmap='gray',
+               figName = "yellowLab")
+    plt.show()
+    combine = list(map(lambda img: whiteOnLuv(img), undistImages))
+    showImages(combine, testImagesName,figTitle ='white on LUV', cols=imageRow,rows=imageCol, cmap='gray',
+               figName = "whiteLuv")
+    plt.show()
+    combine = list(map(lambda img: combineYellowWhiteOnLabLuv(img), undistImages))
+    showImages(combine, testImagesName,figTitle ='combine Yellow with LAB and White with LUV', cols=imageRow,rows=imageCol, cmap='gray',
+               figName = "combineLABLUV")
+    plt.show()
+
+    combine = list(map(lambda img: combineGradientsAndLUV(img,threshSobel = (50,160)), undistImages))
+    showImages(combine, testImagesName,figTitle ='combine Gradient and Yellow and White with LUV', cols=imageRow,rows=imageCol, cmap='gray',
+               figName = "combineGradiantAndLABLUV")
+    plt.show()
