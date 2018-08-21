@@ -306,24 +306,42 @@ def sanityCheck(img, left_fit, right_fit, left_fit_m, right_fit_m):
     discard = False
     xMax = img.shape[1]*xm_per_pix
     yMax = img.shape[0]*ym_per_pix
+    yMid = yMax/2
+    yMin = yMax/8
     yRange = img.shape[0] - 1
     try:
-        lineLeft = left_fit_m[0]*yMax**2 + left_fit_m[1]*yMax + left_fit_m[2]
-        lineRight = right_fit_m[0]*yMax**2 + right_fit_m[1]*yMax + right_fit_m[2]
+        lineLeftMax = left_fit_m[0]*yMax**2 + left_fit_m[1]*yMax + left_fit_m[2]
+        lineRightMax = right_fit_m[0]*yMax**2 + right_fit_m[1]*yMax + right_fit_m[2]
+        
+        lineLeftMid = left_fit_m[0]*yMid**2 + left_fit_m[1]*yMid + left_fit_m[2]
+        lineRightMid = right_fit_m[0]*yMid**2 + right_fit_m[1]*yMid + right_fit_m[2]
+        
+        lineLeftMin = left_fit_m[0]*yMin**2 + left_fit_m[1]*yMin + left_fit_m[2]
+        lineRightMin = right_fit_m[0]*yMin**2 + right_fit_m[1]*yMin + right_fit_m[2]
         ## check width between line left and line right
-        delta_width = abs((lineRight - lineLeft) - between_left_right_Line)/between_left_right_Line
-        if delta_width > 0.2:
-            print("width of lane wrong")
+        delta_width = abs((lineRightMax - lineLeftMax) - between_left_right_Line)/between_left_right_Line
+        if delta_width > 0.05:
+            print("start width of lane wrong")
             discard = True
-
-        leftCurvature = calculateCurvature(yRange, left_fit_m)
-        rightCurvature = calculateCurvature(yRange, right_fit_m)
-        if leftCurvature > 10000:
-            print("discard fail frame as left curve")
-            discard = True
-        if rightCurvature > 10000:
-            print("discard fail frame as right curve")
-            discard = True
+        else:
+            delta_width_mid = abs((lineRightMid - lineLeftMid) - (lineRightMax - lineLeftMax))/(lineRightMax - lineLeftMax)
+            if delta_width_mid > 0.1:
+                print("middle width of lane wrong")
+                discard = True
+            else:
+                delta_width_min = abs((lineRightMin - lineLeftMin) - (lineRightMid - lineLeftMid))/(lineRightMid - lineLeftMid)
+                if delta_width_min > 0.1:
+                    print(" end width of lane wrong")
+                    discard = True
+                else:
+                    leftCurvature = calculateCurvature(yRange, left_fit_m)
+                    rightCurvature = calculateCurvature(yRange, right_fit_m)
+                    if leftCurvature > 10000:
+                        print("discard fail frame as left curve")
+                        discard = True
+                    if rightCurvature > 10000:
+                        print("discard fail frame as right curve")
+                        discard = True
     
     except TypeError:
         print("typeError")
@@ -443,8 +461,8 @@ undistImages = list(map(lambda img: undistortImages(img,mtx, dist),testImages))
 ## Finally use combination of color detection on HSV and Sobel on S channel of HLS
 combineImages = list(map(lambda img: combineGradientsAndLUV(img,threshSobel = (70,160)), undistImages))
 ## show warped images in the test images
-showImages(combineImages, testImagesName,figTitle ='Filter on test images', cols=imageRow,rows=imageCol,cmap='gray',figName = "FilteredTestImages")
-plt.show()
+#showImages(combineImages, testImagesName,figTitle ='Filter on test images', cols=imageRow,rows=imageCol,cmap='gray',figName = "FilteredTestImages")
+#plt.show()
 
 ## Apply perspective transform
 transMatrix = pickle.load( open('./pickled_data/perspective_transform.p', 'rb' ) )
@@ -452,12 +470,12 @@ M, Minv = map(transMatrix.get, ('M', 'Minv'))
 
 warpedImages = list(map(lambda img: adjustPerspective(img, M), combineImages))
 ## show warped images in the test images
-showImages(warpedImages, testImagesName,figTitle ='Perspective transform on the test images', cols=imageRow,rows=imageCol,cmap='gray',figName = "PerspectiveTestImages")
-plt.show()
+#showImages(warpedImages, testImagesName,figTitle ='Perspective transform on the test images', cols=imageRow,rows=imageCol,cmap='gray',figName = "PerspectiveTestImages")
+#plt.show()
 
 ## show lane-line pixels and fit their positions with a polynomial
-polyImages = showLaneOnImages(warpedImages, testImagesName, cols=imageRow,rows=imageCol)
-plt.show()
+#polyImages = showLaneOnImages(warpedImages, testImagesName, cols=imageRow,rows=imageCol)
+#plt.show()
 discardFrameNo = 0
 
 processedImages = []
@@ -466,13 +484,15 @@ for i in range(len(testImagesName)):
     processed = laneCurveProcess(warpedImages[i], testImages[i])
     processedImages.append(processed)
 ## show lane in the test images
-showImages(processedImages, testImagesName,figTitle ='Detected Lines on the test images', cols=imageRow,rows=imageCol,cmap='gray', figName = "LaneOnTestImages")
-plt.show()
+#showImages(processedImages, testImagesName,figTitle ='Detected Lines on the test images', cols=imageRow,rows=imageCol,cmap='gray', figName = "LaneOnTestImages")
+#plt.show()
 
 ## Use pipeline to deal with the project_video file
 ## no need convert BGR to RGB
 needBGR2RGB = not needBGR2RGB
 print("needBGR2RGB: ", needBGR2RGB)
 #videoClip('project_video.mp4', 'test1.mp4', 37,43)
+#videoClip('project_video.mp4', 'test2.mp4', 21,25)
 #videoPipeline('test1.mp4', 'video_output/test1_out.mp4')
+#videoPipeline('test2.mp4', 'video_output/test2_out.mp4')
 videoPipeline('project_video.mp4', 'video_output/project_video_out.mp4')
