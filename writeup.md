@@ -196,4 +196,4 @@ Here I'll talk about the approach I took, what techniques I used, what worked an
 
 5. I clip the video from 0:39~0:42 to test1.mp4. With my above changes, the test1_out.mp4 can detect lane smoothly.
 
-6. I check the distance of start/middle/end of the road. If the distance is not in a range, I will use the last frame.
+6. I check the distance of start/middle/end of the road. If the distance is not in a range, I will use the last frame. This resolve the wrong detection in video 0:21~0.25s.
